@@ -6,7 +6,9 @@ import socket
 import threading
 import os
 import hashlib
+import json
 from utils.helpers import get_local_ip
+from network.security import perform_server_key_exchange, recv_encrypted_message
 
 def calculate_sha256(file_path):
     sha256 = hashlib.sha256()
@@ -114,12 +116,15 @@ class FileReceiver:
         """
 
         try:
-            # Receive filenamd and filesize
-            filename = self._recv_line(client)
-            filesize = int(self._recv_line(client))
+            aesgcm = perform_server_key_exchange(client)
+            metadata = json.loads(recv_encrypted_message(client, aesgcm).decode())
+            filename = metadata["filename"]
+            filesize = int(metadata["filesize"])
+            expected_checksum = metadata["checksum"]
 
             if self.log_callback:
                 self.log_callback(f"Receiving file '{filename}' ({filesize} bytes)")
+                self.log_callback("🔐 Encrypted transfer active")
 
             # Create full path
             save_path = os.path.join(self.save_dir, filename)
@@ -128,9 +133,7 @@ class FileReceiver:
             with open(save_path, "wb") as file:
                 received = 0
                 while received < filesize:
-                    data = client.recv(1024)
-                    if not data:
-                        break
+                    data = recv_encrypted_message(client, aesgcm)
                     file.write(data)
                     received += len(data)
 
@@ -140,18 +143,25 @@ class FileReceiver:
                         if received == filesize or progress % 25 == 0:  # Log at 25% intervals
                             self.log_callback(f"Progress for {filename}: {progress:.1f}%")
             
-            # Receive checksum
-            received_checksum = self._recv_line(client)
             local_checksum = calculate_sha256(save_path)
-            if received_checksum == local_checksum:
+            integrity_verified = expected_checksum == local_checksum
+            if integrity_verified:
                 if self.log_callback:
-                    self.log_callback(f"Checksum OK for '{filename}'")
+                    self.log_callback(f"✅ Verified SHA-256 for '{filename}'")
             else:
                 if self.log_callback:
-                    self.log_callback(f"Checksum mismatch for '{filename}'!\nExpected: {received_checksum}\nGot: {local_checksum}")
+                    self.log_callback(f"❌ Integrity Failed for '{filename}'\nExpected: {expected_checksum}\nGot: {local_checksum}")
 
             if self.log_callback:
-                self.log_callback(f"File '{filename}' received successfully")
+                encryption_status = "🔐 Encrypted"
+                integrity_status = "✅ Verified" if integrity_verified else "❌ Integrity Failed"
+                self.log_callback(f"File '{filename}' received successfully | {encryption_status} | {integrity_status}")
+            if self.ui_callback:
+                self.ui_callback("transfer_result", {
+                    "filename": filename,
+                    "encrypted": True,
+                    "integrity_verified": integrity_verified,
+                })
         
         except Exception as e:
             if self.log_callback:

@@ -119,6 +119,14 @@ class SendTab:
         )
         self.send_status_label.pack(pady=5)
 
+        self.encryption_status_var = tk.StringVar(value="🔐 Encrypted")
+        ctk.CTkLabel(
+            self.parent,
+            textvariable=self.encryption_status_var,
+            text_color="green",
+            font=ctk.CTkFont(size=12, weight="bold")
+        ).pack(pady=(0, 5))
+
     def browse_file(self):
         file_paths = filedialog.askopenfilenames(
         title="Select files to send",
@@ -211,7 +219,7 @@ class SendTab:
                     host = discovered_host
 
                 # Send the file
-                self.sender.send_file(
+                transfer_result = self.sender.send_file(
                     file_path,
                     host,
                     port,
@@ -220,8 +228,11 @@ class SendTab:
                 )
 
                 # Update UI on success
-                self.root.after(0, lambda: self.send_status_var.set("File sent successfully!"))
-                self.root.after(0, lambda: messagebox.showinfo("Success", f"File sent successfully as '{dest_filename}'"))
+                self.root.after(0, lambda: self.send_status_var.set("File sent successfully! 🔐 Encrypted"))
+                self.root.after(0, lambda: self.encryption_status_var.set(
+                    "🔐 Encrypted" if transfer_result.get("encrypted") else "⚠️ Unencrypted"
+                ))
+                self.root.after(0, lambda: messagebox.showinfo("Success", f"File sent successfully as '{dest_filename}'\n🔐 Encrypted"))
 
         except Exception as e:
             self.root.after(0, lambda: self.send_status_var.set(f"Error: {str(e)}"))

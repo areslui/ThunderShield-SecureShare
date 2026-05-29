@@ -120,6 +120,13 @@ class ReceiveTab:
                 elif action == "server_stopped":
                     self.root.after(0, lambda: self.start_server_button.configure(state="normal"))
                     self.root.after(0, lambda: self.stop_server_button.configure(state="disabled"))
+                elif action == "transfer_result" and isinstance(state, dict):
+                    encryption_status = "🔐 Encrypted" if state.get("encrypted") else "⚠️ Unencrypted"
+                    integrity_status = "✅ Verified" if state.get("integrity_verified") else "❌ Integrity Failed"
+                    filename = state.get("filename", "unknown")
+                    self.root.after(0, lambda: self.log_message(
+                        f"Transfer Result - {filename}: {encryption_status} | {integrity_status}"
+                    ))
             
             # Start receiver
             self.receiver.start_receiving(
