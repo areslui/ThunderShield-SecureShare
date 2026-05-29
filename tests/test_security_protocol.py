@@ -2,6 +2,7 @@ import os
 import socket
 import tempfile
 import threading
+import time
 import unittest
 
 from network.receiver import FileReceiver
@@ -26,17 +27,18 @@ class SecurityProtocolTests(unittest.TestCase):
         received = {}
 
         def server_worker():
-            aesgcm = perform_server_key_exchange(server_sock)
-            received["payload"] = recv_encrypted_message(server_sock, aesgcm)
+            secure_session = perform_server_key_exchange(server_sock)
+            received["payload"] = recv_encrypted_message(server_sock, secure_session)
             server_sock.close()
 
         thread = threading.Thread(target=server_worker)
         thread.start()
 
-        aesgcm = perform_client_key_exchange(client_sock)
-        send_encrypted_message(client_sock, aesgcm, b"thundershield")
+        secure_session = perform_client_key_exchange(client_sock)
+        send_encrypted_message(client_sock, secure_session, b"thundershield")
         client_sock.close()
         thread.join(timeout=5)
+        self.assertFalse(thread.is_alive(), "Server thread did not complete in time")
 
         self.assertEqual(received.get("payload"), b"thundershield")
 
@@ -65,7 +67,9 @@ class SecurityProtocolTests(unittest.TestCase):
             for _ in range(20):
                 if os.path.exists(os.path.join(tmp_dir, "received.txt")):
                     break
-                threading.Event().wait(0.1)
+                time.sleep(0.1)
+
+            self.assertTrue(os.path.exists(os.path.join(tmp_dir, "received.txt")))
 
             receiver.stop_receiving()
 

@@ -46,14 +46,14 @@ class FileSender:
 
         try:
             # Mandatory encrypted session
-            aesgcm = perform_client_key_exchange(client)
+            secure_session = perform_client_key_exchange(client)
             checksum = calculate_sha256(file_path)
             metadata = {
                 "filename": dest_filename,
                 "filesize": file_size,
                 "checksum": checksum,
             }
-            send_encrypted_message(client, aesgcm, json.dumps(metadata).encode())
+            send_encrypted_message(client, secure_session, json.dumps(metadata).encode())
 
             # Send file data
             with open(file_path, 'rb') as file:
@@ -62,7 +62,7 @@ class FileSender:
                     data = file.read(64 * 1024)
                     if not data:
                         break
-                    send_encrypted_message(client, aesgcm, data)
+                    send_encrypted_message(client, secure_session, data)
                     sent += len(data)
 
                     # Update progress if callback is provided

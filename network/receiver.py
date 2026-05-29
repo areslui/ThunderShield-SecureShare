@@ -116,8 +116,8 @@ class FileReceiver:
         """
 
         try:
-            aesgcm = perform_server_key_exchange(client)
-            metadata = json.loads(recv_encrypted_message(client, aesgcm).decode())
+            secure_session = perform_server_key_exchange(client)
+            metadata = json.loads(recv_encrypted_message(client, secure_session).decode())
             filename = metadata["filename"]
             filesize = int(metadata["filesize"])
             expected_checksum = metadata["checksum"]
@@ -133,7 +133,7 @@ class FileReceiver:
             with open(save_path, "wb") as file:
                 received = 0
                 while received < filesize:
-                    data = recv_encrypted_message(client, aesgcm)
+                    data = recv_encrypted_message(client, secure_session)
                     file.write(data)
                     received += len(data)
 

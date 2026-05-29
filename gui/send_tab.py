@@ -12,6 +12,9 @@ from network.sender import FileSender
 from utils.helpers import discover_file_server_ip, discover_all_file_servers
 
 class SendTab:
+    ENCRYPTED_STATUS = "🔐 Encrypted"
+    UNENCRYPTED_STATUS = "⚠️ Unencrypted"
+
     def __init__(self, parent, root):
         self.parent = parent
         self.root = root
@@ -119,13 +122,14 @@ class SendTab:
         )
         self.send_status_label.pack(pady=5)
 
-        self.encryption_status_var = tk.StringVar(value="🔐 Encrypted")
-        ctk.CTkLabel(
+        self.encryption_status_var = tk.StringVar(value=self.ENCRYPTED_STATUS)
+        self.encryption_status_label = ctk.CTkLabel(
             self.parent,
             textvariable=self.encryption_status_var,
             text_color="green",
             font=ctk.CTkFont(size=12, weight="bold")
-        ).pack(pady=(0, 5))
+        )
+        self.encryption_status_label.pack(pady=(0, 5))
 
     def browse_file(self):
         file_paths = filedialog.askopenfilenames(
@@ -146,6 +150,11 @@ class SendTab:
             self.file_path_var.set(f"Selected files: {', '.join(os.path.basename(f) for f in files)}")
             self.dest_filename_entry.delete(0, 'end')
             self.dest_filename_entry.insert(0, os.path.basename(files[0]))
+
+    def _set_encryption_status(self, status):
+        self.encryption_status_var.set(status)
+        color = "green" if status == self.ENCRYPTED_STATUS else "orange"
+        self.encryption_status_label.configure(text_color=color)
     
     def discover_hosts(self):
         self.send_status_var.set("Scanning for hosts on local network...")
@@ -226,13 +235,22 @@ class SendTab:
                     dest_filename,
                     progress_callback
                 )
+                transfer_encryption_status = (
+                    self.ENCRYPTED_STATUS
+                    if transfer_result.get("encrypted")
+                    else self.UNENCRYPTED_STATUS
+                )
 
                 # Update UI on success
-                self.root.after(0, lambda: self.send_status_var.set("File sent successfully! 🔐 Encrypted"))
-                self.root.after(0, lambda: self.encryption_status_var.set(
-                    "🔐 Encrypted" if transfer_result.get("encrypted") else "⚠️ Unencrypted"
-                ))
-                self.root.after(0, lambda: messagebox.showinfo("Success", f"File sent successfully as '{dest_filename}'\n🔐 Encrypted"))
+                self.root.after(0, lambda status=transfer_encryption_status: self.send_status_var.set(f"File sent successfully! {status}"))
+                self.root.after(0, lambda status=transfer_encryption_status: self._set_encryption_status(status))
+                self.root.after(
+                    0,
+                    lambda fname=dest_filename, status=transfer_encryption_status: messagebox.showinfo(
+                        "Success",
+                        f"File sent successfully as '{fname}'\n{status}",
+                    ),
+                )
 
         except Exception as e:
             self.root.after(0, lambda: self.send_status_var.set(f"Error: {str(e)}"))
