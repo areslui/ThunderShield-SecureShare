@@ -8,6 +8,7 @@ Supports:
 - ✅ Drag & Drop interface
 - ✅ Multiple file transfers
 - ✅ Transfer progress tracking
+- ✅ AES-256-GCM encrypted transfers (Diffie-Hellman key exchange)
 - ✅ File integrity check using SHA-256
 
 ---
@@ -30,6 +31,10 @@ Supports:
 
 - 📊 **Transfer Progress**  
   - Real-time file transfer status and logs
+
+- 🔒 **Encryption in Transit**  
+  - Uses mandatory AES-256-GCM encryption with ephemeral Diffie-Hellman key exchange
+  - All transfers are encrypted by default — no configuration required
 
 - 🔐 **Integrity Check**  
   - Uses SHA-256 to verify the file was transferred without corruption

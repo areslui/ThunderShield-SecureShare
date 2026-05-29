@@ -7,5 +7,6 @@ test.py
 gui/__pycache__/
 network/__pycache__/
 utils/__pycache__/
+tests/__pycache__/
 sender.py
 receiver.py

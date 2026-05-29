@@ -5,7 +5,8 @@ File Sender - Handles sending files over network
 import socket
 import os
 import hashlib
-from utils.helpers import discover_file_server_ip
+import json
+from network.security import perform_client_key_exchange, send_encrypted_message
 
 def calculate_sha256(file_path):
     sha256 = hashlib.sha256()
@@ -44,26 +45,31 @@ class FileSender:
         client.connect((host, port))
 
         try:
-            # Send filename and filesize
-            client.sendall((dest_filename + '\n').encode())
-            client.sendall((str(file_size) + '\n').encode())
+            # Mandatory encrypted session
+            secure_session = perform_client_key_exchange(client)
+            checksum = calculate_sha256(file_path)
+            metadata = {
+                "filename": dest_filename,
+                "filesize": file_size,
+                "checksum": checksum,
+            }
+            send_encrypted_message(client, secure_session, json.dumps(metadata).encode())
 
             # Send file data
             with open(file_path, 'rb') as file:
                 sent = 0
                 while True:
-                    data = file.read(1024)
+                    data = file.read(64 * 1024)
                     if not data:
                         break
-                    client.sendall(data)
+                    send_encrypted_message(client, secure_session, data)
                     sent += len(data)
 
                     # Update progress if callback is provided
                     if progress_callback:
                         progress = (sent / file_size) * 100
                         progress_callback(progress)
+            return {"encrypted": True, "checksum": checksum}
         
         finally:
-            checksum = calculate_sha256(file_path)
-            client.sendall((checksum + '\n').encode())
             client.close()
